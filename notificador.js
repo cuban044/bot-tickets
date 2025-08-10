@@ -3639,6 +3639,84 @@ app.get('/diagnostico', async (req, res) => {
     res.json(diagnostico);
 });
 
+// ========== DIAGNÓSTICO PASO A PASO DE TICKET ==========
+app.post('/diagnostico-ticket', async (req, res) => {
+    console.log('🔍 INICIANDO DIAGNÓSTICO PASO A PASO...');
+    
+    const logs = [];
+    const addLog = (paso, mensaje, data = null) => {
+        const logEntry = { paso, mensaje, timestamp: new Date().toISOString(), data };
+        logs.push(logEntry);
+        console.log(`📋 [${paso}] ${mensaje}`, data || '');
+    };
+    
+    try {
+        addLog('INICIO', 'Recibiendo payload de test');
+        
+        // Payload de prueba similar a ManyChat
+        const testPayload = {
+            "Numero": "+5213333055098",
+            "Producto": "netflix", 
+            "Comprobante": "TEST DIAGNOSTICO DETALLADO",
+            "Duracion o Cantidad": "30",
+            "ID": "DIAG" + Date.now()
+        };
+        
+        addLog('PAYLOAD', 'Payload procesado', testPayload);
+        
+        // Paso 1: Extraer campos
+        const { Numero, Producto, Comprobante } = testPayload;
+        addLog('EXTRACCION', 'Campos extraídos', { Numero, Producto, Comprobante });
+        
+        // Paso 2: Detectar país
+        const prefijo = Numero.replace(/[^\d]/g, '').substring(0, 2);
+        addLog('PREFIJO', 'Prefijo detectado', { prefijo });
+        
+        // Paso 3: Buscar grupo
+        const gruposPaises = JSON.parse(fs.readFileSync('./grupos-paises.json', 'utf8'));
+        const grupoInfo = gruposPaises[prefijo] || gruposPaises['default'];
+        addLog('GRUPO', 'Grupo asignado', grupoInfo);
+        
+        // Paso 4: Generar mensaje
+        const mensaje = `🎫 *TICKET DIAGNÓSTICO*
+📱 *Número:* ${Numero}
+📦 *Producto:* ${Producto}  
+🧾 *Comprobante:* ${Comprobante}
+⏰ *Timestamp:* ${new Date().toLocaleString()}`;
+        addLog('MENSAJE', 'Mensaje generado', { mensaje });
+        
+        // Paso 5: Enviar via WhAPI
+        addLog('ENVIO_INICIO', 'Iniciando envío via WhAPI...');
+        
+        const resultado = await enviarMensajeWhAPI(grupoInfo.grupo_id, mensaje);
+        addLog('ENVIO_RESULTADO', 'Resultado del envío', { resultado });
+        
+        if (resultado) {
+            addLog('EXITO', 'Ticket enviado exitosamente');
+        } else {
+            addLog('ERROR', 'Ticket falló al enviar');
+        }
+        
+        // Respuesta con logs completos
+        res.json({
+            success: !!resultado,
+            mensaje: resultado ? 'Diagnóstico completado exitosamente' : 'Diagnóstico falló',
+            logs: logs,
+            grupo_destino: grupoInfo.grupo_id,
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        addLog('ERROR_CRITICO', 'Error durante diagnóstico', { error: error.message, stack: error.stack });
+        
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            logs: logs
+        });
+    }
+});
+
 app.listen(3000, () => {
   console.log('✅ Sistema de Tickets de Autorización escuchando en puerto 3000');
   console.log('🛡️ Sistema anti-duplicados activado (ventana de tiempo: 30 minutos)');
