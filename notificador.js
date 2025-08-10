@@ -35,18 +35,28 @@ if (!WHAPI_ENABLED) {
 
 // Función para formatear número para WhAPI Cloud
 function formatearNumeroWhAPI(numero) {
-  // Limpiar el número
-  let numeroLimpio = numero.toString().replace(/[^\d]/g, '');
+  const numeroOriginal = numero.toString();
+  
+  // Si ya es un ID de grupo, devolverlo sin modificar
+  if (numeroOriginal.endsWith('@g.us')) {
+    return numeroOriginal;
+  }
+  
+  // Si ya está formateado como contacto, devolverlo sin modificar
+  if (numeroOriginal.endsWith('@c.us')) {
+    return numeroOriginal;
+  }
+  
+  // Limpiar el número (solo para números de teléfono)
+  let numeroLimpio = numeroOriginal.replace(/[^\d]/g, '');
   
   // Si empieza con 52 (México) y tiene 12 dígitos, agregar 1
   if (numeroLimpio.startsWith('52') && numeroLimpio.length === 12) {
     numeroLimpio = '521' + numeroLimpio.slice(2);
   }
   
-  // Para WhAPI Cloud, agregar @c.us si no lo tiene
-  if (!numeroLimpio.endsWith('@c.us') && !numeroLimpio.endsWith('@g.us')) {
-    numeroLimpio += '@c.us';
-  }
+  // Agregar @c.us para números de teléfono
+  numeroLimpio += '@c.us';
   
   return numeroLimpio;
 }
