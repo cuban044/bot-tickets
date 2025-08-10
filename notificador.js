@@ -3652,21 +3652,52 @@ app.get('/diagnostico', async (req, res) => {
 // ========== WEBHOOK PARA RESPUESTAS DE WHAPI CLOUD ==========
 app.post('/webhook-whapi', async (req, res) => {
     try {
-        console.log('📥 Webhook recibido de WhAPI Cloud:', JSON.stringify(req.body, null, 2));
+        console.log('📥 WEBHOOK RECIBIDO DE WHAPI CLOUD');
+        console.log('Headers:', JSON.stringify(req.headers, null, 2));
+        console.log('Body completo:', JSON.stringify(req.body, null, 2));
         
-        const { messages } = req.body;
+        // Respuesta inmediata para confirmar recepción
+        res.status(200).json({ 
+            status: 'received', 
+            timestamp: new Date().toISOString(),
+            bodyReceived: !!req.body 
+        });
         
-        if (messages && messages.length > 0) {
-            for (const message of messages) {
-                await procesarMensajeEntrante(message);
+        // Procesar el mensaje después de responder
+        setTimeout(async () => {
+            try {
+                const { messages } = req.body;
+                
+                if (messages && messages.length > 0) {
+                    console.log(`📊 Procesando ${messages.length} mensajes`);
+                    for (const message of messages) {
+                        console.log(`📨 Mensaje individual:`, JSON.stringify(message, null, 2));
+                        await procesarMensajeEntrante(message);
+                    }
+                } else {
+                    console.log('⚠️ No se encontraron mensajes en el payload');
+                    console.log('Estructura recibida:', Object.keys(req.body || {}));
+                }
+            } catch (procError) {
+                console.error('❌ Error procesando mensaje:', procError.message);
             }
-        }
+        }, 100);
         
-        res.status(200).json({ status: 'ok' });
     } catch (error) {
-        console.error('❌ Error procesando webhook WhAPI:', error.message);
+        console.error('❌ Error en webhook WhAPI:', error.message);
         res.status(500).json({ error: error.message });
     }
+});
+
+// ========== ENDPOINT DE TEST WEBHOOK ==========
+app.get('/webhook-whapi-test', (req, res) => {
+    console.log('🧪 Test de webhook llamado');
+    res.json({
+        status: 'Webhook endpoint funcionando',
+        url: '/webhook-whapi',
+        method: 'POST',
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Función para procesar mensajes entrantes del grupo
