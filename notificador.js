@@ -3649,6 +3649,151 @@ app.get('/diagnostico', async (req, res) => {
     res.json(diagnostico);
 });
 
+// ========== WEBHOOK PARA RESPUESTAS DE WHAPI CLOUD ==========
+app.post('/webhook-whapi', async (req, res) => {
+    try {
+        console.log('📥 Webhook recibido de WhAPI Cloud:', JSON.stringify(req.body, null, 2));
+        
+        const { messages } = req.body;
+        
+        if (messages && messages.length > 0) {
+            for (const message of messages) {
+                await procesarMensajeEntrante(message);
+            }
+        }
+        
+        res.status(200).json({ status: 'ok' });
+    } catch (error) {
+        console.error('❌ Error procesando webhook WhAPI:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Función para procesar mensajes entrantes del grupo
+async function procesarMensajeEntrante(message) {
+    try {
+        const { from, body, chat_id, quoted_message } = message;
+        
+        // Solo procesar mensajes de grupos
+        if (!chat_id || !chat_id.endsWith('@g.us')) {
+            return;
+        }
+        
+        // Solo procesar respuestas a mensajes (quoted_message)
+        if (!quoted_message) {
+            return;
+        }
+        
+        const textoRespuesta = (body || '').trim();
+        
+        // Buscar si es aprobación o rechazo
+        if (textoRespuesta === '✅' || textoRespuesta.toLowerCase().includes('aprobar')) {
+            await procesarAprobacion(quoted_message, from, chat_id);
+        } else if (textoRespuesta === '❌' || textoRespuesta.toLowerCase().includes('rechazar')) {
+            await procesarRechazo(quoted_message, from, chat_id);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error procesando mensaje entrante:', error.message);
+    }
+}
+
+// Función para procesar aprobación
+async function procesarAprobacion(quotedMessage, administrador, grupoId) {
+    try {
+        console.log('✅ Procesando aprobación...');
+        
+        // Extraer número de ticket del mensaje original
+        const ticketMatch = quotedMessage.body.match(/Ticket:\s*#(\d+)/);
+        if (!ticketMatch) {
+            console.log('❌ No se pudo extraer número de ticket');
+            return;
+        }
+        
+        const ticketId = ticketMatch[1];
+        
+        // Extraer datos del cliente del mensaje original
+        const numeroMatch = quotedMessage.body.match(/Número:\s*([+\d\s]+)/);
+        const productoMatch = quotedMessage.body.match(/Producto:\s*([^\n]+)/);
+        const duracionMatch = quotedMessage.body.match(/Duración:\s*([^\n]+)/);
+        
+        if (!numeroMatch || !productoMatch) {
+            console.log('❌ No se pudieron extraer datos del cliente');
+            return;
+        }
+        
+        const numeroCliente = numeroMatch[1].trim();
+        const producto = productoMatch[1].trim();
+        const duracion = duracionMatch ? duracionMatch[1].trim() : '';
+        
+        console.log(`✅ Aprobando ticket #${ticketId} para ${numeroCliente}`);
+        
+        // Enviar confirmación al grupo
+        await enviarMensajeWhAPI(grupoId, `✅ *TICKET #${ticketId} APROBADO*\n👤 Administrador: ${administrador}\n📱 Cliente notificado y producto entregado`);
+        
+        // Procesar entrega del producto
+        await entregarProductoAprobado(numeroCliente, producto, duracion, ticketId);
+        
+    } catch (error) {
+        console.error('❌ Error procesando aprobación:', error.message);
+    }
+}
+
+// Función para procesar rechazo
+async function procesarRechazo(quotedMessage, administrador, grupoId) {
+    try {
+        console.log('❌ Procesando rechazo...');
+        
+        const ticketMatch = quotedMessage.body.match(/Ticket:\s*#(\d+)/);
+        if (!ticketMatch) {
+            console.log('❌ No se pudo extraer número de ticket');
+            return;
+        }
+        
+        const ticketId = ticketMatch[1];
+        
+        const numeroMatch = quotedMessage.body.match(/Número:\s*([+\d\s]+)/);
+        if (!numeroMatch) {
+            console.log('❌ No se pudo extraer número del cliente');
+            return;
+        }
+        
+        const numeroCliente = numeroMatch[1].trim();
+        
+        console.log(`❌ Rechazando ticket #${ticketId} para ${numeroCliente}`);
+        
+        // Enviar confirmación al grupo
+        await enviarMensajeWhAPI(grupoId, `❌ *TICKET #${ticketId} RECHAZADO*\n👤 Administrador: ${administrador}\n📱 Cliente notificado`);
+        
+        // Notificar al cliente
+        await enviarMensajeWhAPI(numeroCliente, `❌ *PAGO RECHAZADO*\n\n🎫 *Ticket:* #${ticketId}\n💬 *Motivo:* Tu comprobante de pago no fue aprobado.\n\n📞 Si crees que es un error, contacta a soporte.`);
+        
+    } catch (error) {
+        console.error('❌ Error procesando rechazo:', error.message);
+    }
+}
+
+// Función para entregar producto aprobado
+async function entregarProductoAprobado(numeroCliente, producto, duracion, ticketId) {
+    try {
+        console.log(`🚀 Entregando producto: ${producto} a ${numeroCliente}`);
+        
+        // Actualizar balance del cliente
+        await actualizarBalance(numeroCliente, producto, duracion);
+        
+        // Entregar producto (licencia/tutorial)
+        await entregarProducto(numeroCliente, producto, duracion);
+        
+        console.log(`✅ Producto entregado exitosamente para ticket #${ticketId}`);
+        
+    } catch (error) {
+        console.error(`❌ Error entregando producto para ticket #${ticketId}:`, error.message);
+        
+        // Notificar error al cliente
+        await enviarMensajeWhAPI(numeroCliente, `⚠️ *PAGO APROBADO - ERROR EN ENTREGA*\n\n🎫 *Ticket:* #${ticketId}\n💬 Tu pago fue aprobado pero hubo un error en la entrega.\n\n📞 Contacta a soporte con el número de ticket.`);
+    }
+}
+
 // ========== DIAGNÓSTICO PASO A PASO DE TICKET ==========
 app.post('/diagnostico-ticket', async (req, res) => {
     console.log('🔍 INICIANDO DIAGNÓSTICO PASO A PASO...');
