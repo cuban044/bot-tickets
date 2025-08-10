@@ -1,0 +1,109 @@
+{
+  "grupos": {
+    "1": {
+      "nombre": "Estados Unidos",
+      "grupo_id": "120363401251953271@g.us",
+      "descripcion": "Grupo de autorización para Estados Unidos (Zelle)"
+    },
+    "51": {
+      "nombre": "Perú",
+      "grupo_id": "120363417368677350@g.us",
+      "descripcion": "Grupo de autorización para Perú"
+    },
+    "52": {
+      "nombre": "México",
+      "grupo_id": "120363418067354378@g.us",
+      "descripcion": "Grupo de autorización para México"
+    },
+    "54": {
+      "nombre": "Argentina",
+      "grupo_id": "120363401663037797@g.us",
+      "descripcion": "Grupo de autorización para Argentina"
+    },
+    "56": {
+      "nombre": "Chile",
+      "grupo_id": "120363420436761758@g.us",
+      "descripcion": "Grupo de autorización para Chile"
+    },
+    "57": {
+      "nombre": "Colombia",
+      "grupo_id": "593990229882-1594873955@g.us",
+      "descripcion": "Grupo de autorización para Colombia"
+    },
+    "58": {
+      "nombre": "Venezuela",
+      "grupo_id": "120363398173137353@g.us",
+      "descripcion": "Grupo de autorización para Venezuela"
+    },
+    "502": {
+      "nombre": "Guatemala",
+      "grupo_id": "120363398656519857@g.us",
+      "descripcion": "Grupo de autorización para Guatemala"
+    },
+    "503": {
+      "nombre": "El Salvador",
+      "grupo_id": "120363420167370551@g.us",
+      "descripcion": "Grupo de autorización para El Salvador"
+    },
+    "504": {
+      "nombre": "Honduras",
+      "grupo_id": "120363419778118625@g.us",
+      "descripcion": "Grupo de autorización para Honduras"
+    },
+    "505": {
+      "nombre": "Nicaragua",
+      "grupo_id": "120363401736870656@g.us",
+      "descripcion": "Grupo de autorización para Nicaragua"
+    },
+    "506": {
+      "nombre": "Costa Rica",
+      "grupo_id": "120363400160997955@g.us",
+      "descripcion": "Grupo de autorización para Costa Rica"
+    },
+    "507": {
+      "nombre": "Panamá",
+      "grupo_id": "120363401398769921@g.us",
+      "descripcion": "Grupo de autorización para Panamá"
+    },
+    "591": {
+      "nombre": "Bolivia",
+      "grupo_id": "120363396997457198@g.us",
+      "descripcion": "Grupo de autorización para Bolivia"
+    },
+    "593": {
+      "nombre": "Ecuador",
+      "grupo_id": "593990229882-1594871335@g.us",
+      "descripcion": "Grupo de autorización para Ecuador"
+    },
+    "595": {
+      "nombre": "Paraguay",
+      "grupo_id": "120363399463454580@g.us",
+      "descripcion": "Grupo de autorización para Paraguay"
+    },
+    "598": {
+      "nombre": "Uruguay",
+      "grupo_id": "120363399463454580@g.us",
+      "descripcion": "Grupo de autorización para Uruguay"
+    },
+    "1809": {
+      "nombre": "República Dominicana",
+      "grupo_id": "120363416755900666@g.us",
+      "descripcion": "Grupo de autorización para República Dominicana"
+    },
+    "1829": {
+      "nombre": "República Dominicana",
+      "grupo_id": "120363416755900666@g.us",
+      "descripcion": "Grupo de autorización para República Dominicana"
+    },
+    "1849": {
+      "nombre": "República Dominicana",
+      "grupo_id": "120363416755900666@g.us",
+      "descripcion": "Grupo de autorización para República Dominicana"
+    },
+    "default": {
+      "nombre": "Internacional",
+      "grupo_id": "120363399463454580@g.us",
+      "descripcion": "Grupo de autorización para otros países"
+    }
+  }
+}
