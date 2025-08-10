@@ -1739,8 +1739,15 @@ app.post('/reportar-ticket', async (req, res) => {
   console.log(`   🎯 País asignado: ${grupoInfo.nombre}`);
   console.log(`   📛 Grupo ID: ${grupoInfo.grupo_id}`);
 
-  // Construir mensaje con información específica del producto socio
-  let mensaje = `✅ NUEVA COMPRA
+  // Construir mensaje mejorado y más organizado
+  const horaActual = new Date().toLocaleTimeString('es-ES', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    timeZone: 'America/Mexico_City'
+  });
+  
+  let mensaje = `🎫 *TICKET #${ticketId}* | ${horaActual}
+══════════════════════════════
 
 📱 *Cliente:* ${Numero}
 📦 *Producto:* ${Producto}`;
@@ -1792,12 +1799,14 @@ app.post('/reportar-ticket', async (req, res) => {
 
   mensaje += `
 
-🎫 *Ticket:* #${ticketId}
 🌍 *País:* ${grupoInfo.nombre}
+══════════════════════════════
 
-📋 *RESPONDER A ESTE MENSAJE:*
-✅ *Para APROBAR*
-❌ *Para RECHAZAR*`;
+⚡ *RESPONDER A ESTE MENSAJE:*
+✅ *APROBAR TICKET #${ticketId}*
+❌ *RECHAZAR TICKET #${ticketId}*
+
+🔔 *Ticket #${ticketId}* • ${horaActual}`;
 
   try {
     console.log(`🎫 Enviando ticket #${ticketId} al grupo de ${grupoInfo.nombre}...`);
@@ -3717,10 +3726,22 @@ async function procesarMensajeEntrante(message) {
         
         const textoRespuesta = (body || '').trim();
         
-        // Buscar si es aprobación o rechazo
-        if (textoRespuesta === '✅' || textoRespuesta.toLowerCase().includes('aprobar')) {
+        // Buscar si es aprobación o rechazo (múltiples formas)
+        const esAprobacion = textoRespuesta === '✅' || 
+                            textoRespuesta.toLowerCase().includes('aprobar') ||
+                            textoRespuesta.toLowerCase().includes('aprobar ticket') ||
+                            textoRespuesta.toLowerCase().includes('si') ||
+                            textoRespuesta.toLowerCase().includes('ok');
+                            
+        const esRechazo = textoRespuesta === '❌' || 
+                         textoRespuesta.toLowerCase().includes('rechazar') ||
+                         textoRespuesta.toLowerCase().includes('rechazar ticket') ||
+                         textoRespuesta.toLowerCase().includes('no') ||
+                         textoRespuesta.toLowerCase().includes('cancel');
+        
+        if (esAprobacion) {
             await procesarAprobacion(quoted_message, from, chat_id);
-        } else if (textoRespuesta === '❌' || textoRespuesta.toLowerCase().includes('rechazar')) {
+        } else if (esRechazo) {
             await procesarRechazo(quoted_message, from, chat_id);
         }
         
@@ -3734,17 +3755,19 @@ async function procesarAprobacion(quotedMessage, administrador, grupoId) {
     try {
         console.log('✅ Procesando aprobación...');
         
-        // Extraer número de ticket del mensaje original
-        const ticketMatch = quotedMessage.body.match(/Ticket:\s*#(\d+)/);
+        // Extraer número de ticket del mensaje original (múltiples formatos)
+        const ticketMatch = quotedMessage.body.match(/(?:TICKET #|Ticket:\s*#)(\d+)/) || 
+                           quotedMessage.body.match(/#(\d+)/);
         if (!ticketMatch) {
             console.log('❌ No se pudo extraer número de ticket');
+            console.log('❌ Mensaje original:', quotedMessage.body);
             return;
         }
         
         const ticketId = ticketMatch[1];
         
         // Extraer datos del cliente del mensaje original
-        const numeroMatch = quotedMessage.body.match(/Número:\s*([+\d\s]+)/);
+        const numeroMatch = quotedMessage.body.match(/(?:Número|Cliente):\s*([+\d\s]+)/);
         const productoMatch = quotedMessage.body.match(/Producto:\s*([^\n]+)/);
         const duracionMatch = quotedMessage.body.match(/Duración:\s*([^\n]+)/);
         
@@ -3775,15 +3798,18 @@ async function procesarRechazo(quotedMessage, administrador, grupoId) {
     try {
         console.log('❌ Procesando rechazo...');
         
-        const ticketMatch = quotedMessage.body.match(/Ticket:\s*#(\d+)/);
+        // Extraer número de ticket del mensaje original (múltiples formatos)
+        const ticketMatch = quotedMessage.body.match(/(?:TICKET #|Ticket:\s*#)(\d+)/) || 
+                           quotedMessage.body.match(/#(\d+)/);
         if (!ticketMatch) {
             console.log('❌ No se pudo extraer número de ticket');
+            console.log('❌ Mensaje original:', quotedMessage.body);
             return;
         }
         
         const ticketId = ticketMatch[1];
         
-        const numeroMatch = quotedMessage.body.match(/Número:\s*([+\d\s]+)/);
+        const numeroMatch = quotedMessage.body.match(/(?:Número|Cliente):\s*([+\d\s]+)/);
         if (!numeroMatch) {
             console.log('❌ No se pudo extraer número del cliente');
             return;
