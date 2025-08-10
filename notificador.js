@@ -3709,29 +3709,112 @@ app.get('/webhook-whapi-test', (req, res) => {
     });
 });
 
+// ========== ENDPOINT PARA CONFIGURAR WEBHOOKS ==========
+app.post('/configurar-webhook-whapi', async (req, res) => {
+    try {
+        console.log('🔧 Configurando webhook en WhAPI Cloud...');
+        
+        const webhookUrl = 'https://web-production-dd820.up.railway.app/webhook-whapi';
+        
+        // Intentar configurar webhook vía API (si WhAPI lo permite)
+        const configResponse = await fetch(`${WHAPI_BASE_URL}/settings/webhook`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${WHAPI_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: webhookUrl,
+                events: ['messages', 'statuses'],
+                mode: 'body'
+            })
+        });
+        
+        if (configResponse.ok) {
+            const result = await configResponse.json();
+            res.json({
+                success: true,
+                message: 'Webhook configurado exitosamente',
+                config: result,
+                webhook_url: webhookUrl
+            });
+        } else {
+            const error = await configResponse.text();
+            res.json({
+                success: false,
+                message: 'Error configurando webhook',
+                error: error,
+                note: 'Configura manualmente en panel de WhAPI Cloud'
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error configurando webhook:', error.message);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            instruction: 'Configura manualmente en https://gate.whapi.cloud'
+        });
+    }
+});
+
 // Función para procesar mensajes entrantes del grupo
 async function procesarMensajeEntrante(message) {
     try {
-        const { from, body, chat_id, quoted_message } = message;
+        console.log('📨 Procesando mensaje entrante:', JSON.stringify(message, null, 2));
+        
+        const { from, body, chat_id, quoted_message, type, sticker, text, reactions, context } = message;
         
         // Solo procesar mensajes de grupos
         if (!chat_id || !chat_id.endsWith('@g.us')) {
+            console.log('⚠️ Mensaje no es de grupo, ignorando');
             return;
         }
         
-        // Solo procesar respuestas a mensajes (quoted_message)
-        if (!quoted_message) {
+        // Solo procesar respuestas a mensajes (múltiples formatos posibles)
+        const esRespuesta = quoted_message || 
+                           (context && context.quoted_id) || 
+                           (context && context.quoted_content);
+        
+        if (!esRespuesta) {
+            console.log('⚠️ Mensaje no es respuesta a otro mensaje, ignorando');
+            console.log('🔍 Campos disponibles:', Object.keys(message));
             return;
         }
         
-        const textoRespuesta = (body || '').trim();
+        console.log('✅ Mensaje es respuesta, procesando...');
+        
+        // Extraer contenido del mensaje según el tipo
+        let contenidoRespuesta = '';
+        
+        if (type === 'text' && (body || (text && text.body))) {
+            contenidoRespuesta = body || text.body || '';
+        } else if (type === 'sticker' && sticker) {
+            // Para stickers, usar un identificador o buscar patrones comunes
+            contenidoRespuesta = '✅'; // Asumimos que sticker de check es aprobación
+            console.log('🎭 Sticker detectado, tratando como aprobación');
+        } else if (reactions && reactions.length > 0) {
+            // Para reacciones, verificar el emoji
+            const reaccion = reactions[0];
+            if (reaccion.emoji === '✅' || reaccion.emoji === '👍') {
+                contenidoRespuesta = '✅';
+                console.log('⚡ Reacción de aprobación detectada');
+            } else if (reaccion.emoji === '❌' || reaccion.emoji === '👎') {
+                contenidoRespuesta = '❌';
+                console.log('⚡ Reacción de rechazo detectada');
+            }
+        }
+        
+        const textoRespuesta = contenidoRespuesta.trim();
+        console.log(`📝 Contenido extraído: "${textoRespuesta}" (tipo: ${type})`);
         
         // Buscar si es aprobación o rechazo (múltiples formas)
         const esAprobacion = textoRespuesta === '✅' || 
                             textoRespuesta.toLowerCase().includes('aprobar') ||
                             textoRespuesta.toLowerCase().includes('aprobar ticket') ||
                             textoRespuesta.toLowerCase().includes('si') ||
-                            textoRespuesta.toLowerCase().includes('ok');
+                            textoRespuesta.toLowerCase().includes('ok') ||
+                            type === 'sticker'; // Cualquier sticker lo consideramos aprobación por ahora
                             
         const esRechazo = textoRespuesta === '❌' || 
                          textoRespuesta.toLowerCase().includes('rechazar') ||
@@ -3739,14 +3822,29 @@ async function procesarMensajeEntrante(message) {
                          textoRespuesta.toLowerCase().includes('no') ||
                          textoRespuesta.toLowerCase().includes('cancel');
         
+        console.log(`🔍 Es aprobación: ${esAprobacion}, Es rechazo: ${esRechazo}`);
+        
         if (esAprobacion) {
-            await procesarAprobacion(quoted_message, from, chat_id);
+            console.log('✅ Procesando como APROBACIÓN');
+            // Extraer mensaje original según estructura de WhAPI Cloud
+            const mensajeOriginal = quoted_message || 
+                                   (context && context.quoted_content) || 
+                                   { body: 'Mensaje no disponible' };
+            await procesarAprobacion(mensajeOriginal, from, chat_id);
         } else if (esRechazo) {
-            await procesarRechazo(quoted_message, from, chat_id);
+            console.log('❌ Procesando como RECHAZO');
+            // Extraer mensaje original según estructura de WhAPI Cloud
+            const mensajeOriginal = quoted_message || 
+                                   (context && context.quoted_content) || 
+                                   { body: 'Mensaje no disponible' };
+            await procesarRechazo(mensajeOriginal, from, chat_id);
+        } else {
+            console.log('⚠️ Mensaje no reconocido como aprobación o rechazo');
         }
         
     } catch (error) {
         console.error('❌ Error procesando mensaje entrante:', error.message);
+        console.error('❌ Stack:', error.stack);
     }
 }
 
