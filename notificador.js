@@ -1,6 +1,5 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const client = require('./index');
 const gruposPaises = require('./grupos-paises.json');
 const fs = require('fs');
 const fetch = require('node-fetch');
