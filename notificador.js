@@ -1562,8 +1562,8 @@ app.get('/recibir-datos-zapier', async (req, res) => {
         console.log(`📝 Mensaje de licencia:`, mensajeLicencia.substring(0, 100) + '...');
         console.log(`📚 Tutorial (${tutorialText.length} caracteres):`, tutorialText.substring(0, 100) + '...');
         
-        // Verificar que WhatsApp esté conectado
-        if (!client.pupPage) {
+        // Verificar que WhatsApp esté disponible (WhAPI o cliente local)
+        if (!WHAPI_ENABLED && (!client || !client.pupPage)) {
           console.log('❌ WhatsApp no está conectado');
           return res.json({ 
             success: false, 
@@ -1576,15 +1576,15 @@ app.get('/recibir-datos-zapier', async (req, res) => {
         const enviarMensajeConReintentos = async (mensaje, maxIntentos = 3) => {
           for (let intento = 1; intento <= maxIntentos; intento++) {
             try {
-              // Verificar que el cliente esté listo
-              if (!client.pupPage) {
+              // Verificar que el cliente esté listo (solo si estamos usando cliente local)
+              if (client && !client.pupPage) {
                 console.log(`⚠️ WhatsApp no está listo, esperando 5 segundos... (intento ${intento}/${maxIntentos})`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
                 continue;
               }
               
-              // Verificar que el cliente esté autenticado
-              if (!client.authStrategy) {
+              // Verificar que el cliente esté autenticado (solo si estamos usando cliente local)
+              if (client && !client.authStrategy) {
                 console.log(`⚠️ WhatsApp no está autenticado, esperando 3 segundos... (intento ${intento}/${maxIntentos})`);
                 await new Promise(resolve => setTimeout(resolve, 3000));
                 continue;
@@ -1679,12 +1679,12 @@ app.post('/reportar-ticket', async (req, res) => {
     });
   }
 
-  // Verificar que el cliente de WhatsApp esté listo
-  if (!client.pupPage) {
+  // Verificar que WhatsApp esté disponible (WhAPI o cliente local)
+  if (!WHAPI_ENABLED && (!client || !client.pupPage)) {
     return res.status(503).json({
       success: false,
       message: 'WhatsApp no está conectado. Espera unos segundos y vuelve a intentar.',
-      error: 'WhatsApp client not ready'
+      error: 'WhatsApp not available'
     });
   }
 
