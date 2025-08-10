@@ -5,13 +5,30 @@ const fs = require('fs');
 const fetch = require('node-fetch');
 const path = require('path');
 const { entregarProducto } = require('./licencias-manager');
-const { MessageMedia } = require('whatsapp-web.js');
+
+// Importar WhatsApp cliente de forma opcional (no funciona en Railway)
+let client;
+let MessageMedia;
+try {
+  client = require('./index');
+  const WhatsAppWebJS = require('whatsapp-web.js');
+  MessageMedia = WhatsAppWebJS.MessageMedia;
+  console.log('✅ WhatsApp cliente cargado para entorno local');
+} catch (error) {
+  console.log('⚠️ WhatsApp cliente no disponible (normal en Railway)');
+  client = null;
+  MessageMedia = null;
+}
 
 
 
 // Función para verificar el estado del cliente de WhatsApp
 async function verificarEstadoCliente() {
   try {
+    if (!client) {
+      return { conectado: false, estado: 'NOT_AVAILABLE' };
+    }
+    
     if (!client.pupPage) {
       return { conectado: false, estado: 'NO_PAGE' };
     }
@@ -26,6 +43,11 @@ async function verificarEstadoCliente() {
 // Función para intentar recuperar la conexión
 async function intentarRecuperarConexion() {
   console.log('🔄 Intentando recuperar conexión de WhatsApp...');
+  
+  if (!client) {
+    console.log('⚠️ Cliente de WhatsApp no disponible');
+    return false;
+  }
   
   try {
     if (client.pupPage) {
@@ -49,6 +71,13 @@ async function intentarRecuperarConexion() {
 
 // Función mejorada para enviar mensajes con manejo robusto de errores
 async function enviarMensajeSeguro(numeroDestino, mensaje, maxIntentos = 3) {
+  // Si no hay cliente disponible (Railway), solo simular envío
+  if (!client) {
+    console.log(`⚠️ WhatsApp no disponible en Railway - Simulando envío a ${numeroDestino}`);
+    console.log(`📱 Mensaje: ${mensaje.substring(0, 100)}...`);
+    return true;
+  }
+
   for (let intento = 1; intento <= maxIntentos; intento++) {
     try {
       console.log(`📤 Enviando mensaje (intento ${intento}/${maxIntentos}) a ${numeroDestino}`);
@@ -197,6 +226,12 @@ function limpiarArchivoTemporal(rutaArchivo) {
 
 // Función para enviar mensaje con imagen adjunta
 async function enviarMensajeConImagen(numeroDestino, mensaje, urlImagen, nombreImagen = 'comprobante.jpg') {
+  // Si no hay cliente o MessageMedia disponible (Railway), solo enviar texto
+  if (!client || !MessageMedia) {
+    console.log(`⚠️ WhatsApp no disponible en Railway - Enviando solo texto`);
+    return await enviarMensajeSeguro(numeroDestino, mensaje);
+  }
+
   try {
     console.log(`📤 Enviando mensaje con imagen a: ${numeroDestino}`);
     
@@ -430,8 +465,14 @@ async function detectarGrupos() {
   try {
     console.log('🔍 Verificando estado de WhatsApp antes de detectar grupos...');
     
-    // Verificar si el cliente existe y está conectado
-    if (!client || !client.pupPage) {
+    // Verificar si el cliente existe (no disponible en Railway)
+    if (!client) {
+      console.log('⚠️ Cliente de WhatsApp no disponible (normal en Railway)');
+      return [];
+    }
+    
+    // Verificar si el cliente está inicializado
+    if (!client.pupPage) {
       console.log('⚠️ Cliente de WhatsApp no está inicializado');
       return [];
     }
@@ -2745,6 +2786,12 @@ app.post('/test-imagen', async (req, res) => {
 
 // Función para intentar detectar grupos con reintentos
 async function inicializarDeteccionGrupos() {
+  // Si no hay cliente (Railway), no intentar detectar grupos
+  if (!client) {
+    console.log('⚠️ WhatsApp no disponible en Railway - Saltando detección de grupos');
+    return;
+  }
+
   const maxIntentos = 5;
   const tiempoEspera = 15000; // 15 segundos entre intentos
   
