@@ -3673,7 +3673,7 @@ app.post('/diagnostico-ticket', async (req, res) => {
         addLog('PREFIJO', 'Prefijo detectado', { prefijo });
         
         // Paso 3: Buscar grupo
-        const grupoInfo = gruposPaises[prefijo] || gruposPaises['default'];
+        const grupoInfo = obtenerGrupoPais(prefijo);
         addLog('GRUPO', 'Grupo asignado', grupoInfo);
         
         // Paso 4: Generar mensaje
