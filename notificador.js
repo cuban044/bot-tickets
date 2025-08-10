@@ -230,10 +230,14 @@ async function enviarMensajeSeguro(numeroDestino, mensaje, maxIntentos = 3) {
         }
       }
       
-      // Enviar mensaje
-      await client.sendMessage(numeroDestino, mensaje);
-      console.log(`✅ Mensaje enviado exitosamente (intento ${intento})`);
-      return true;
+      // Enviar mensaje (solo si cliente local disponible)
+      if (client) {
+        await client.sendMessage(numeroDestino, mensaje);
+        console.log(`✅ Mensaje enviado exitosamente (intento ${intento})`);
+        return true;
+      } else {
+        throw new Error('Cliente local no disponible');
+      }
       
     } catch (error) {
       console.log(`❌ Error en intento ${intento}/${maxIntentos}: ${error.message}`);
@@ -389,9 +393,13 @@ async function enviarMensajeConImagen(numeroDestino, mensaje, urlImagen, nombreI
     // Crear MessageMedia desde el archivo descargado
     const media = MessageMedia.fromFilePath(resultadoDescarga.rutaArchivo);
     
-    // Enviar mensaje con imagen
-    await client.sendMessage(numeroDestino, media, { caption: mensaje });
-    console.log(`✅ Mensaje con imagen enviado exitosamente`);
+    // Enviar mensaje con imagen (solo si cliente local disponible)
+    if (client) {
+      await client.sendMessage(numeroDestino, media, { caption: mensaje });
+      console.log(`✅ Mensaje con imagen enviado exitosamente`);
+    } else {
+      throw new Error('Cliente local no disponible para envío de imagen');
+    }
     
     // Limpiar archivo temporal después de enviarlo
     setTimeout(() => {
@@ -634,6 +642,12 @@ async function detectarGrupos() {
     }
     
     console.log('🔍 Detectando grupos de WhatsApp...');
+    
+    if (!client) {
+      console.log('⚠️ Cliente no disponible para obtener chats');
+      return [];
+    }
+    
     const chats = await client.getChats();
     
     if (!chats || !Array.isArray(chats)) {
@@ -1414,9 +1428,14 @@ app.post('/entrega-directa', async (req, res) => {
         try {
           console.log(`📤 Enviando mensaje (intento ${intento}/${maxIntentos})`);
           
-          // Verificar estado de WhatsApp Web
-          const info = await client.getState();
-          console.log(`📱 Estado de WhatsApp: ${info}`);
+          // Verificar estado de WhatsApp Web (solo si cliente disponible)
+          let info = 'NOT_AVAILABLE';
+          if (client) {
+            info = await client.getState();
+            console.log(`📱 Estado de WhatsApp: ${info}`);
+          } else {
+            console.log(`📱 Cliente no disponible en Railway`);
+          }
           
           if (info !== 'CONNECTED') {
             console.log(`⚠️ WhatsApp no está conectado (${info}), esperando 5 segundos... (intento ${intento}/${maxIntentos})`);
@@ -2251,9 +2270,14 @@ Tu pago ha sido validado correctamente. Uno de nuestros vendedores se pondrá en
               try {
                 console.log(`📤 Enviando mensaje (intento ${intento}/${maxIntentos})`);
                 
-                // Verificar estado de WhatsApp Web
-                const info = await client.getState();
-                console.log(`📱 Estado de WhatsApp: ${info}`);
+                // Verificar estado de WhatsApp Web (solo si cliente disponible)
+                let info = 'NOT_AVAILABLE';
+                if (client) {
+                  info = await client.getState();
+                  console.log(`📱 Estado de WhatsApp: ${info}`);
+                } else {
+                  console.log(`📱 Cliente no disponible en Railway`);
+                }
                 
                 if (info !== 'CONNECTED') {
                   console.log(`⚠️ WhatsApp no está conectado (${info}), esperando 5 segundos... (intento ${intento}/${maxIntentos})`);
