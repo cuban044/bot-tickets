@@ -277,6 +277,17 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 app.use(bodyParser.json());
 
+// Endpoint simple para verificar que Railway funciona
+app.get('/ping', (req, res) => {
+  console.log('🏓 Ping recibido');
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    whapi_enabled: WHAPI_ENABLED,
+    client_available: !!client
+  });
+});
+
 // Variable para almacenar los grupos detectados
 let gruposDetectados = {};
 
@@ -3521,6 +3532,111 @@ app.get('/auditoria-productos', (req, res) => {
       error: error.message
     });
   }
+});
+
+// ========== ENDPOINT DE DIAGNÓSTICO ==========
+app.get('/diagnostico', async (req, res) => {
+    console.log('🔍 DIAGNÓSTICO INICIADO...');
+    
+    const diagnostico = {
+        timestamp: new Date().toISOString(),
+        variables_entorno: {
+            WHAPI_TOKEN: process.env.WHAPI_TOKEN ? 'CONFIGURADO ✅' : 'FALTANTE ❌',
+            WHAPI_CHANNEL: process.env.WHAPI_CHANNEL ? process.env.WHAPI_CHANNEL : 'FALTANTE ❌',
+            NODE_ENV: process.env.NODE_ENV || 'NO CONFIGURADO',
+            PORT: process.env.PORT || 'NO CONFIGURADO'
+        },
+        configuracion_whapi: {
+            WHAPI_ENABLED: WHAPI_ENABLED,
+            WHAPI_BASE_URL: WHAPI_BASE_URL,
+            WHAPI_TOKEN_LENGTH: WHAPI_TOKEN ? WHAPI_TOKEN.length : 0,
+            WHAPI_CHANNEL_VALUE: WHAPI_CHANNEL
+        },
+        tests: []
+    };
+
+    // Test 1: Verificar conexión a WhAPI
+    try {
+        console.log('🧪 Test 1: Verificando conexión WhAPI...');
+        
+        const testResponse = await fetch(`${WHAPI_BASE_URL}/account`, {
+            headers: {
+                'Authorization': `Bearer ${WHAPI_TOKEN}`
+            }
+        });
+        
+        const testData = await testResponse.text();
+        diagnostico.tests.push({
+            nombre: 'Conexión WhAPI',
+            status: testResponse.status,
+            resultado: testData.substring(0, 200) + '...',
+            exito: testResponse.status === 200
+        });
+        
+    } catch (error) {
+        diagnostico.tests.push({
+            nombre: 'Conexión WhAPI',
+            status: 'ERROR',
+            resultado: error.message,
+            exito: false
+        });
+    }
+
+    // Test 2: Envío directo de mensaje
+    try {
+        console.log('🧪 Test 2: Envío directo de mensaje...');
+        const testMessage = {
+            to: "120363418067354378@g.us",
+            body: "🔍 DIAGNÓSTICO RAILWAY " + Date.now()
+        };
+        
+        const messageResponse = await fetch(`${WHAPI_BASE_URL}/messages/text`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${WHAPI_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(testMessage)
+        });
+        
+        const messageResult = await messageResponse.text();
+        diagnostico.tests.push({
+            nombre: 'Envío mensaje directo',
+            status: messageResponse.status,
+            resultado: messageResult.substring(0, 300),
+            exito: messageResponse.ok
+        });
+        
+    } catch (error) {
+        diagnostico.tests.push({
+            nombre: 'Envío mensaje directo',
+            status: 'ERROR',
+            resultado: error.message,
+            exito: false
+        });
+    }
+
+    // Test 3: Función enviarMensajeWhAPI
+    try {
+        console.log('🧪 Test 3: Función enviarMensajeWhAPI...');
+        const resultado = await enviarMensajeWhAPI("120363418067354378@g.us", "🧪 TEST FUNCIÓN " + Date.now());
+        diagnostico.tests.push({
+            nombre: 'Función enviarMensajeWhAPI',
+            status: 'OK',
+            resultado: JSON.stringify(resultado),
+            exito: true
+        });
+    } catch (error) {
+        diagnostico.tests.push({
+            nombre: 'Función enviarMensajeWhAPI',
+            status: 'ERROR',
+            resultado: error.message,
+            exito: false
+        });
+    }
+
+    console.log('🔍 DIAGNÓSTICO COMPLETADO:', JSON.stringify(diagnostico, null, 2));
+    res.json(diagnostico);
 });
 
 app.listen(3000, () => {
