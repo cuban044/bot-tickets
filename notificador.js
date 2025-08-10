@@ -3673,7 +3673,6 @@ app.post('/diagnostico-ticket', async (req, res) => {
         addLog('PREFIJO', 'Prefijo detectado', { prefijo });
         
         // Paso 3: Buscar grupo
-        const gruposPaises = JSON.parse(fs.readFileSync('./grupos-paises.json', 'utf8'));
         const grupoInfo = gruposPaises[prefijo] || gruposPaises['default'];
         addLog('GRUPO', 'Grupo asignado', grupoInfo);
         
